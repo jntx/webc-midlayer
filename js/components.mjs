@@ -285,121 +285,6 @@ class CommonElement extends HTMLElement {
 }
 
 /**
- * TextField
- * 
- * Componente per testi brevi.
- */
-class TextField extends CommonElement {
-	constructor() {
-		super();
-
-		this.customSetProperty("required", false);
-		this.customSetProperty("inputFilterRegEx", "");
-
-		let internalField = this.customGetElement();
-		internalField.webcBackReference = this;
-
-		internalField.addEventListener("keypress", this.customOnKeyPress);
-		internalField.addEventListener("keyup", this.customOnKeyUp);
-
-		internalField = this.appendChild(internalField);
-	}
-
-	customGetElements() {
-		let internalField = document.createElement("input");
-		internalField.type = "text";
-
-		let key = this.customGetParameter("properties/name");
-
-		return [
-			{ name : key, handle : internalField }
-		];
-	}
-
-	customGetElement() {
-		let internalField = document.createElement("input");
-		internalField.type = "text";
-		
-		return internalField;
-	}
-
-	customOnKeyPress(e) {
-		if (isUIKey(e)) {
-			return true;
-		}
-		
-		if (e.target.readOnly) {
-			return e.preventDefault() && false;
-		}
-
-		let regEx = e.target.webcBackReference.customGetProperty("inputFilterRegEx");
-
-		if (regEx != "") {
-			let re = new RegExp(regEx);
-
-			if (!re.test(e.key)) {
-				return e.preventDefault() && false;
-			}
-		}
-
-		return true;
-	}
-	
-	customOnKeyUp(e) {
-		e.target.webcBackReference.customValue = e.target.value; // @TODO: va formattato?
-
-		return true;
-	}
-
-	get customValue() {
-		return super.customValue;
-	}
-
-	set customValue(newVal) {
-		if (typeof(newVal) !== "object") {
-			newVal = new customResultValue(newVal.toString());
-	 	} else if (!("value" in newVal)) {
-			return;
-		}
-
-		this.firstElementChild.value = newVal.value;
-
-		this.customSetProperty("value", newVal);
-	}
-
-	get customValidate() {
-		let value = this.customValue;
-		let isValid = true;
-
-		if (value === "" && !this.customRequired()) {
-			isValid = false;
-		}
-
-		/*
-		if (this.slEnableValidationFeedback()) {
-			if (isValid) {
-				this.classList.add(this.slSuccessClass());
-				this.classList.remove(this.slErrorClass());
-			} else {
-				this.classList.remove(this.slSuccessClass());
-				this.classList.add(this.slErrorClass());
-			}
-		}
-		*/
-
-		return isValid;
-	}
-}
-
-class LongtextField extends TextField {
-	customGetElement() {
-		let internalField = document.createElement("textarea");
-		
-		return internalField;
-	}
-}
-
-/**
  * DateField
  * 
  * Componente che implementa l'immissione di date
@@ -761,9 +646,170 @@ class DateField extends CommonElement {
 	}
 }
 
-// Definizioni (sono sufficenti queste per la visibilità a documento)
-customElements.define("text-field", TextField);
-customElements.define("longtext-field", LongtextField);
-customElements.define("date-field", DateField);
+class RandomEl extends CommonElement {
+	constructor() {
+		super();
+	}
 
-export { CommonElement, TextField, LongtextField, DateField };
+	static get observedAttributes() {
+		return super.observedAttributes.concat(["data-custom-current-tick"]);
+	}
+
+	customServiceGetRandomWidth() {
+		return 1 + Math.floor(Math.random() * 80);
+	}
+
+	customServiceGetRandomColor() {
+		return `rgb(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)})`;
+	}
+
+	customServiceUpdate(propertiesCollection) {
+		if ((propertiesCollection["currentTick"] % propertiesCollection["updateInterval"]) != 0) {
+			return;
+		}
+
+		let width = this.customServiceGetRandomWidth() + "px";
+		let color = this.customServiceGetRandomColor();
+
+		this.customSetParameter("parameter/width", width);
+		this.customSetParameter("parameter/color", color);
+
+		let field = this.customGetParameter("elements/span");
+
+		field.style.width = width;
+		field.style.backgroundColor = color;
+	}
+
+	customGetStyle() {
+		let css = `
+			:root {
+				margin: 0;
+				display: inline-block;
+			}
+		`;
+
+		let internalStyle = document.createElement("style");
+		internalStyle.type = "text/css";
+		internalStyle.innerHTML = css;
+
+		return internalStyle;
+	}
+
+	customGetElements() {
+		this.customSetParameter("parameter/width", this.customServiceGetRandomWidth() + "px");
+		this.customSetParameter("parameter/color", this.customServiceGetRandomColor());
+
+		let internalField = document.createElement("span");
+		internalField.style.display = "inline-block";
+		internalField.style.height = "30px";
+		internalField.style.width = this.customGetParameter("parameter/width");
+		internalField.style.backgroundColor = this.customGetParameter("parameter/color");
+		
+		return {
+			root : internalField,
+			items : [
+				{ name : "span", handle : internalField }
+			]
+		};
+	}
+
+	customCurrentTickCallback(data) {
+		if (typeof(data) === "undefined") {
+			return this.customGetParameter("properties/currentTick");
+		}
+	
+		this.customSetParameter("properties/currentTick", +data.newValue);
+		this.customServiceUpdate(this.customGetParameter("properties"));
+	}
+
+	connectedCallback() {
+		this.customSetParameter("properties/currentTick", 0);
+		this.customSetParameter("properties/updateInterval", 1 + Math.floor(Math.random() * 10));
+    }
+}
+
+class TestWebC extends CommonElement {
+	constructor() {
+		super();
+	}
+
+	static get observedAttributes() {
+		return super.observedAttributes.concat(["data-custom-elements-count"]);
+	}
+	
+	customGetStyle() {
+		let css = `
+			:root {
+				margin: 0;
+				display: block;
+			}
+		`;
+
+		let internalStyle = document.createElement("style");
+		internalStyle.type = "text/css";
+		internalStyle.innerHTML = css;
+
+		return internalStyle;
+	}
+
+	customGetElements() {
+		let count = this.customGetParameter("properties/count");
+
+		if ([null, undefined, NaN, Infinity].includes(count)) {
+			count = +this.dataset.customElementsCount;
+		}
+
+		let rootElement = document.createElement("div");
+		let elementsCollection = [];
+
+		for (let i = 0; i < count; i++) {
+			elementsCollection.push({
+				name : "randomel" + i,
+				handle : rootElement.appendChild(new RandomEl())
+			});
+		}
+		
+		return {
+			root : rootElement,
+			items : elementsCollection
+		};
+	}
+
+	customServiceTick() {
+		let tick = this.customGetParameter("properties/tick");
+		tick++;
+
+		let elementsCollection = this.customGetParameter("elements");
+
+		for (let i in elementsCollection) {
+			elementsCollection[i].dataset.customCurrentTick = tick;
+		}
+
+		this.customSetParameter("properties/tick", tick);
+	}
+
+	customElementsCountCallback(data) {
+		if (typeof(data) === "undefined") {
+			return this.customGetParameter("properties/count");
+		}
+	
+		this.customSetParameter("properties/count", +data.newValue);
+		// @TODO: al variare del count variare la collection di elementi
+	}
+
+	connectedCallback() {
+		this.customSetParameter("properties/tick", 0);
+		this.customSetParameter("properties/intervalHandle", setInterval(this.customServiceTick.bind(this), 50));
+	}
+	
+	disconnectedCallback() {
+		clearInterval(this.customGetParameter("properties/intervalHandle"));
+    }
+}
+
+// Definizioni (sono sufficenti queste per la visibilità a documento)
+customElements.define("date-field", DateField);
+customElements.define("random-el", RandomEl);
+customElements.define("test-web-c", TestWebC);
+
+export { CommonElement, DateField };
